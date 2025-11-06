@@ -6,16 +6,17 @@ Test-Driven Development approach using unittest
 
 import unittest
 import asyncio
+import sys
+import os
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
 # Import the functions we're testing
-import sys
-import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from server import get_current_time, convert_time
-
+# pylint: disable=import-error,wrong-import-position
+# from simplified_server import get_current_time, convert_time
+from time_mcp_server  import get_current_time, convert_time
 
 class TestGetCurrentTime(unittest.TestCase):
     """Test suite for get_current_time tool"""
@@ -158,7 +159,7 @@ class TestConvertTime(unittest.TestCase):
             )
         )
         
-        source_dt = datetime.fromisoformat(result['source']['datetime'])
+        _ = datetime.fromisoformat(result['source']['datetime'])  # source_dt unused
         target_dt = datetime.fromisoformat(result['target']['datetime'])
         
         # Verify the hour changed correctly
