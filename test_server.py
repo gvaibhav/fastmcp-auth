@@ -15,8 +15,8 @@ from zoneinfo import ZoneInfo
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 # pylint: disable=import-error,wrong-import-position
-# from simplified_server import get_current_time, convert_time
-from time_mcp_server  import get_current_time, convert_time
+from time_mcp_server import get_current_time, convert_time
+
 
 class TestGetCurrentTime(unittest.TestCase):
     """Test suite for get_current_time tool"""
