@@ -1,3 +1,15 @@
+fastmcp>=0.5.0
+
+# Development dependencies
+coverage>=7.0.0
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+python-dotenv>=1.0.0
+
+# Optional: for better development experience
+black>=23.0.0
+flake8>=6.0.0
+mypy>=1.5.0
 # FastMCP core
 fastmcp>=0.5.0
 
