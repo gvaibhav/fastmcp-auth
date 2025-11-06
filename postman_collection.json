@@ -1,0 +1,866 @@
+{
+  "info": {
+    "name": "Time MCP Server - OAuth2 PKCE",
+    "description": "Complete Postman collection for testing Time MCP Server with OAuth2 PKCE authentication.\n\nSetup Instructions:\n1. Import this collection into Postman\n2. Update environment variables with your OAuth gateway URLs\n3. Run 'Setup - Generate PKCE' to create code_verifier and code_challenge\n4. Follow the OAuth flow in order\n5. Test the MCP tools\n\nNote: This collection demonstrates the OAuth2 PKCE flow. You'll need your OAuth gateway configured.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "1.0.0"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{access_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "oauth_auth_url",
+      "value": "http://localhost:8000/oauth/authorize",
+      "type": "string"
+    },
+    {
+      "key": "oauth_token_url",
+      "value": "http://localhost:8000/oauth/token",
+      "type": "string"
+    },
+    {
+      "key": "client_id",
+      "value": "time-mcp-client",
+      "type": "string"
+    },
+    {
+      "key": "redirect_uri",
+      "value": "http://localhost:3000/callback",
+      "type": "string"
+    },
+    {
+      "key": "scope",
+      "value": "time:read time:convert",
+      "type": "string"
+    },
+    {
+      "key": "code_verifier",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "code_challenge",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "authorization_code",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "access_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "refresh_token",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "0. Setup & Documentation",
+      "item": [
+        {
+          "name": "README - Testing Instructions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": ["{{base_url}}"],
+              "path": ["health"]
+            },
+            "description": "# Time MCP Server Testing Guide\n\n## Prerequisites\n1. Time MCP Server running on {{base_url}}\n2. OAuth Gateway running and configured\n3. Postman installed\n\n## OAuth2 PKCE Flow Overview\n\n```\n1. Generate PKCE parameters (code_verifier, code_challenge)\n2. Request authorization (user login)\n3. Exchange authorization code for access token\n4. Use access token to call MCP tools\n5. Refresh token when expired\n```\n\n## Testing Steps\n\n### Step 1: Generate PKCE Parameters\nRun: `Setup - Generate PKCE`\n- Creates random code_verifier\n- Generates code_challenge (SHA256)\n- Saves to environment variables\n\n### Step 2: Get Authorization Code\nRun: `OAuth - 1. Authorize (Get Code)`\n- Opens browser for user login\n- Redirects back with authorization code\n- Copy code to {{authorization_code}} variable\n\n### Step 3: Exchange for Access Token\nRun: `OAuth - 2. Token Exchange`\n- Sends code + code_verifier to token endpoint\n- Receives access_token and refresh_token\n- Automatically saves to environment\n\n### Step 4: Test MCP Tools\nRun any tool request:\n- `MCP - Get Current Time`\n- `MCP - Convert Time`\n- `MCP - Get Resource (current)`\n- `MCP - Get Resource (timezones)`\n\n### Step 5: Refresh Token (Optional)\nWhen access token expires:\nRun: `OAuth - 3. Refresh Token`\n\n## Important Notes\n\n- **PKCE is Automatic**: Code challenge/verifier handled by Postman\n- **No Client Secret**: PKCE doesn't need client_secret\n- **Browser Required**: Authorization step needs user interaction\n- **Token Expiry**: Access tokens typically expire in 1 hour\n\n## Troubleshooting\n\n### \"Invalid code_challenge\"\n- Regenerate PKCE parameters\n- Ensure code_challenge is base64url encoded\n\n### \"Invalid authorization code\"\n- Code may have expired (usually 10 minutes)\n- Get a new authorization code\n\n### \"Invalid token\"\n- Access token expired\n- Use refresh token to get new access token\n\n### \"Unauthorized\"\n- Check that access_token is set in collection auth\n- Verify scopes match what gateway expects"
+          },
+          "response": []
+        },
+        {
+          "name": "Setup - Generate PKCE",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Generate code_verifier (43-128 characters)",
+                  "function generateCodeVerifier() {",
+                  "    const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';",
+                  "    const length = 128;",
+                  "    let result = '';",
+                  "    const randomValues = new Uint8Array(length);",
+                  "    crypto.getRandomValues(randomValues);",
+                  "    for (let i = 0; i < length; i++) {",
+                  "        result += charset[randomValues[i] % charset.length];",
+                  "    }",
+                  "    return result;",
+                  "}",
+                  "",
+                  "// Generate code_challenge from code_verifier (SHA256 hash)",
+                  "async function generateCodeChallenge(verifier) {",
+                  "    const encoder = new TextEncoder();",
+                  "    const data = encoder.encode(verifier);",
+                  "    const hash = await crypto.subtle.digest('SHA-256', data);",
+                  "    // Convert to base64url",
+                  "    const base64 = btoa(String.fromCharCode(...new Uint8Array(hash)));",
+                  "    return base64",
+                  "        .replace(/\\+/g, '-')",
+                  "        .replace(/\\//g, '_')",
+                  "        .replace(/=/g, '');",
+                  "}",
+                  "",
+                  "// Generate PKCE parameters",
+                  "(async function() {",
+                  "    const codeVerifier = generateCodeVerifier();",
+                  "    const codeChallenge = await generateCodeChallenge(codeVerifier);",
+                  "    ",
+                  "    pm.collectionVariables.set('code_verifier', codeVerifier);",
+                  "    pm.collectionVariables.set('code_challenge', codeChallenge);",
+                  "    ",
+                  "    console.log('PKCE Parameters Generated:');",
+                  "    console.log('code_verifier:', codeVerifier);",
+                  "    console.log('code_challenge:', codeChallenge);",
+                  "    console.log('\\nThese have been saved to collection variables.');",
+                  "    console.log('\\nNext step: Run \"OAuth - 1. Authorize (Get Code)\"');",
+                  "})();"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/",
+              "host": ["{{base_url}}"],
+              "path": [""]
+            },
+            "description": "Generates PKCE parameters (code_verifier and code_challenge) and saves them to collection variables.\n\nThis must be run FIRST before starting the OAuth flow."
+          },
+          "response": []
+        }
+      ],
+      "description": "Setup and documentation for testing the Time MCP Server"
+    },
+    {
+      "name": "1. OAuth2 PKCE Flow",
+      "item": [
+        {
+          "name": "OAuth - 1. Authorize (Get Code)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{oauth_auth_url}}?response_type=code&client_id={{client_id}}&redirect_uri={{redirect_uri}}&scope={{scope}}&code_challenge={{code_challenge}}&code_challenge_method=S256&state=random_state_string",
+              "host": ["{{oauth_auth_url}}"],
+              "query": [
+                {
+                  "key": "response_type",
+                  "value": "code",
+                  "description": "OAuth2 response type"
+                },
+                {
+                  "key": "client_id",
+                  "value": "{{client_id}}",
+                  "description": "Your OAuth client ID"
+                },
+                {
+                  "key": "redirect_uri",
+                  "value": "{{redirect_uri}}",
+                  "description": "Where to redirect after authorization"
+                },
+                {
+                  "key": "scope",
+                  "value": "{{scope}}",
+                  "description": "Required scopes"
+                },
+                {
+                  "key": "code_challenge",
+                  "value": "{{code_challenge}}",
+                  "description": "PKCE code challenge (SHA256 of verifier)"
+                },
+                {
+                  "key": "code_challenge_method",
+                  "value": "S256",
+                  "description": "Challenge method (SHA256)"
+                },
+                {
+                  "key": "state",
+                  "value": "random_state_string",
+                  "description": "CSRF protection (optional but recommended)"
+                }
+              ]
+            },
+            "description": "**Step 1: Authorization Request**\n\nThis initiates the OAuth2 PKCE flow:\n\n1. Run this request in Postman\n2. It will open your browser to the OAuth gateway\n3. Log in and authorize the application\n4. You'll be redirected to: `redirect_uri?code=AUTHORIZATION_CODE`\n5. Copy the `code` parameter value\n6. Set it as {{authorization_code}} variable\n7. Proceed to Step 2 (Token Exchange)\n\n**What's Happening:**\n- Your gateway validates the client_id\n- User logs in and grants permissions\n- Gateway stores the code_challenge\n- Gateway returns authorization code\n\n**PKCE Security:**\n- code_challenge is sent (not code_verifier)\n- Gateway stores code_challenge for validation\n- Only the client with code_verifier can exchange the code"
+          },
+          "response": []
+        },
+        {
+          "name": "OAuth - 2. Token Exchange",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Parse response",
+                  "const response = pm.response.json();",
+                  "",
+                  "// Save tokens to collection variables",
+                  "if (response.access_token) {",
+                  "    pm.collectionVariables.set('access_token', response.access_token);",
+                  "    console.log('✅ Access token saved');",
+                  "}",
+                  "",
+                  "if (response.refresh_token) {",
+                  "    pm.collectionVariables.set('refresh_token', response.refresh_token);",
+                  "    console.log('✅ Refresh token saved');",
+                  "}",
+                  "",
+                  "// Log token info",
+                  "console.log('Token Type:', response.token_type);",
+                  "console.log('Expires In:', response.expires_in, 'seconds');",
+                  "console.log('Scope:', response.scope);",
+                  "",
+                  "// Set tests",
+                  "pm.test('Status code is 200', function() {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Access token received', function() {",
+                  "    pm.expect(response.access_token).to.exist;",
+                  "});",
+                  "",
+                  "pm.test('Token type is Bearer', function() {",
+                  "    pm.expect(response.token_type).to.equal('Bearer');",
+                  "});",
+                  "",
+                  "console.log('\\n🎉 Ready to test MCP tools! Run any MCP request now.');"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"source_timezone\": \"UTC\",\n  \"time\": \"25:99\",\n  \"target_timezone\": \"America/New_York\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/tools/convert_time",
+              "host": ["{{base_url}}"],
+              "path": ["tools", "convert_time"]
+            },
+            "description": "Test error handling for invalid time format (25:99 is invalid)."
+          },
+          "response": []
+        },
+        {
+          "name": "Error - Missing Access Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 401', function() {",
+                  "    pm.response.to.have.status(401);",
+                  "});",
+                  "",
+                  "pm.test('Error indicates unauthorized', function() {",
+                  "    const body = pm.response.text();",
+                  "    pm.expect(body.toLowerCase()).to.include('unauthorized');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"timezone\": \"UTC\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/tools/get_current_time",
+              "host": ["{{base_url}}"],
+              "path": ["tools", "get_current_time"]
+            },
+            "description": "Test that requests without access token are rejected."
+          },
+          "response": []
+        },
+        {
+          "name": "Error - Invalid Access Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 401', function() {",
+                  "    pm.response.to.have.status(401);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "invalid_token_12345",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"timezone\": \"UTC\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/tools/get_current_time",
+              "host": ["{{base_url}}"],
+              "path": ["tools", "get_current_time"]
+            },
+            "description": "Test that requests with invalid access token are rejected."
+          },
+          "response": []
+        }
+      ],
+      "description": "Test error handling and edge cases"
+    },
+    {
+      "name": "5. Health & Status",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": ["{{base_url}}"],
+              "path": ["health"]
+            },
+            "description": "Health check endpoint (if available). Does not require authentication."
+          },
+          "response": []
+        },
+        {
+          "name": "Server Info",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/",
+              "host": ["{{base_url}}"],
+              "path": [""]
+            },
+            "description": "Get server information. Does not require authentication."
+          },
+          "response": []
+        }
+      ],
+      "description": "Health check and server status endpoints"
+    }
+  ]
+}urlencoded",
+              "urlencoded": [
+                {
+                  "key": "grant_type",
+                  "value": "authorization_code",
+                  "type": "text"
+                },
+                {
+                  "key": "code",
+                  "value": "{{authorization_code}}",
+                  "type": "text",
+                  "description": "Authorization code from Step 1"
+                },
+                {
+                  "key": "redirect_uri",
+                  "value": "{{redirect_uri}}",
+                  "type": "text"
+                },
+                {
+                  "key": "client_id",
+                  "value": "{{client_id}}",
+                  "type": "text"
+                },
+                {
+                  "key": "code_verifier",
+                  "value": "{{code_verifier}}",
+                  "type": "text",
+                  "description": "PKCE code verifier (proves we generated the challenge)"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{oauth_token_url}}",
+              "host": ["{{oauth_token_url}}"]
+            },
+            "description": "**Step 2: Token Exchange**\n\nExchanges authorization code for access token using PKCE.\n\n**Before running:**\n1. Ensure you have authorization_code from Step 1\n2. Set {{authorization_code}} variable\n3. Run this request\n\n**What's Happening:**\n- Sends authorization code + code_verifier\n- Gateway validates: SHA256(code_verifier) == stored code_challenge\n- If valid, returns access_token and refresh_token\n- Tokens saved automatically to collection variables\n\n**PKCE Security:**\n- Gateway verifies code_verifier matches code_challenge\n- Only original client can complete the exchange\n- No client_secret needed\n\n**Success Response:**\n```json\n{\n  \"access_token\": \"...\",\n  \"token_type\": \"Bearer\",\n  \"expires_in\": 3600,\n  \"refresh_token\": \"...\",\n  \"scope\": \"time:read time:convert\"\n}\n```"
+          },
+          "response": []
+        },
+        {
+          "name": "OAuth - 3. Refresh Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const response = pm.response.json();",
+                  "",
+                  "if (response.access_token) {",
+                  "    pm.collectionVariables.set('access_token', response.access_token);",
+                  "    console.log('✅ New access token saved');",
+                  "}",
+                  "",
+                  "if (response.refresh_token) {",
+                  "    pm.collectionVariables.set('refresh_token', response.refresh_token);",
+                  "    console.log('✅ New refresh token saved');",
+                  "}",
+                  "",
+                  "pm.test('Status code is 200', function() {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('New access token received', function() {",
+                  "    pm.expect(response.access_token).to.exist;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "grant_type",
+                  "value": "refresh_token",
+                  "type": "text"
+                },
+                {
+                  "key": "refresh_token",
+                  "value": "{{refresh_token}}",
+                  "type": "text"
+                },
+                {
+                  "key": "client_id",
+                  "value": "{{client_id}}",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{oauth_token_url}}",
+              "host": ["{{oauth_token_url}}"]
+            },
+            "description": "**Step 3: Refresh Access Token**\n\nUse refresh token to get a new access token when the current one expires.\n\n**When to use:**\n- Access token expired (typically after 1 hour)\n- Getting 401 Unauthorized errors\n- Proactively before expiration\n\n**Response:**\nNew access_token (and possibly new refresh_token)\n\n**Note:**\nNo PKCE parameters needed for refresh - refresh_token is already secure."
+          },
+          "response": []
+        }
+      ],
+      "description": "Complete OAuth2 PKCE authentication flow"
+    },
+    {
+      "name": "2. MCP Tools",
+      "item": [
+        {
+          "name": "MCP - Get Current Time (UTC)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const response = pm.response.json();",
+                  "",
+                  "pm.test('Status code is 200', function() {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has timezone field', function() {",
+                  "    pm.expect(response.timezone).to.exist;",
+                  "});",
+                  "",
+                  "pm.test('Response has datetime field', function() {",
+                  "    pm.expect(response.datetime).to.exist;",
+                  "});",
+                  "",
+                  "pm.test('Response has is_dst field', function() {",
+                  "    pm.expect(response.is_dst).to.be.a('boolean');",
+                  "});",
+                  "",
+                  "pm.test('Timezone is UTC', function() {",
+                  "    pm.expect(response.timezone).to.equal('UTC');",
+                  "});",
+                  "",
+                  "console.log('Current UTC Time:', response.datetime);",
+                  "console.log('DST Active:', response.is_dst);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"timezone\": \"UTC\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/tools/get_current_time",
+              "host": ["{{base_url}}"],
+              "path": ["tools", "get_current_time"]
+            },
+            "description": "Get current time in UTC timezone.\n\n**Expected Response:**\n```json\n{\n  \"timezone\": \"UTC\",\n  \"datetime\": \"2025-11-05T14:30:00+00:00\",\n  \"is_dst\": false\n}\n```"
+          },
+          "response": []
+        },
+        {
+          "name": "MCP - Get Current Time (New York)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const response = pm.response.json();",
+                  "",
+                  "pm.test('Status code is 200', function() {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Timezone is America/New_York', function() {",
+                  "    pm.expect(response.timezone).to.equal('America/New_York');",
+                  "});",
+                  "",
+                  "console.log('Current NY Time:', response.datetime);",
+                  "console.log('DST Active:', response.is_dst);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"timezone\": \"America/New_York\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/tools/get_current_time",
+              "host": ["{{base_url}}"],
+              "path": ["tools", "get_current_time"]
+            },
+            "description": "Get current time in New York timezone."
+          },
+          "response": []
+        },
+        {
+          "name": "MCP - Get Current Time (Tokyo)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"timezone\": \"Asia/Tokyo\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/tools/get_current_time",
+              "host": ["{{base_url}}"],
+              "path": ["tools", "get_current_time"]
+            },
+            "description": "Get current time in Tokyo timezone."
+          },
+          "response": []
+        },
+        {
+          "name": "MCP - Convert Time (UTC to NY)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const response = pm.response.json();",
+                  "",
+                  "pm.test('Status code is 200', function() {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has source', function() {",
+                  "    pm.expect(response.source).to.exist;",
+                  "});",
+                  "",
+                  "pm.test('Response has target', function() {",
+                  "    pm.expect(response.target).to.exist;",
+                  "});",
+                  "",
+                  "pm.test('Response has time_difference', function() {",
+                  "    pm.expect(response.time_difference).to.exist;",
+                  "});",
+                  "",
+                  "console.log('Source:', response.source.datetime);",
+                  "console.log('Target:', response.target.datetime);",
+                  "console.log('Difference:', response.time_difference);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"source_timezone\": \"UTC\",\n  \"time\": \"14:30\",\n  \"target_timezone\": \"America/New_York\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/tools/convert_time",
+              "host": ["{{base_url}}"],
+              "path": ["tools", "convert_time"]
+            },
+            "description": "Convert 14:30 UTC to New York time.\n\n**Expected Response:**\n```json\n{\n  \"source\": {\n    \"timezone\": \"UTC\",\n    \"datetime\": \"2025-11-05T14:30:00+00:00\",\n    \"is_dst\": false\n  },\n  \"target\": {\n    \"timezone\": \"America/New_York\",\n    \"datetime\": \"2025-11-05T09:30:00-05:00\",\n    \"is_dst\": false\n  },\n  \"time_difference\": \"-5.0h\"\n}\n```"
+          },
+          "response": []
+        },
+        {
+          "name": "MCP - Convert Time (NY to Tokyo)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"source_timezone\": \"America/New_York\",\n  \"time\": \"16:30\",\n  \"target_timezone\": \"Asia/Tokyo\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/tools/convert_time",
+              "host": ["{{base_url}}"],
+              "path": ["tools", "convert_time"]
+            },
+            "description": "Convert 16:30 New York time (4:30 PM) to Tokyo time."
+          },
+          "response": []
+        },
+        {
+          "name": "MCP - Convert Time (Edge Case - Midnight)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"source_timezone\": \"UTC\",\n  \"time\": \"00:00\",\n  \"target_timezone\": \"Asia/Tokyo\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/tools/convert_time",
+              "host": ["{{base_url}}"],
+              "path": ["tools", "convert_time"]
+            },
+            "description": "Test edge case: converting midnight UTC to Tokyo."
+          },
+          "response": []
+        }
+      ],
+      "description": "MCP tool requests (require valid access token)"
+    },
+    {
+      "name": "3. MCP Resources",
+      "item": [
+        {
+          "name": "MCP - Get Resource (current)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/resources/time://current",
+              "host": ["{{base_url}}"],
+              "path": ["resources", "time:", "", "current"]
+            },
+            "description": "Get current UTC time resource.\n\nResource URI: `time://current`"
+          },
+          "response": []
+        },
+        {
+          "name": "MCP - Get Resource (timezones)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/resources/time://timezones",
+              "host": ["{{base_url}}"],
+              "path": ["resources", "time:", "", "timezones"]
+            },
+            "description": "Get list of available timezones.\n\nResource URI: `time://timezones`"
+          },
+          "response": []
+        }
+      ],
+      "description": "MCP resource requests (require valid access token)"
+    },
+    {
+      "name": "4. Error Cases",
+      "item": [
+        {
+          "name": "Error - Invalid Timezone",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 400 or 422', function() {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([400, 422]);",
+                  "});",
+                  "",
+                  "pm.test('Error message mentions invalid timezone', function() {",
+                  "    const body = pm.response.text();",
+                  "    pm.expect(body.toLowerCase()).to.include('invalid');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"timezone\": \"Invalid/Timezone\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/tools/get_current_time",
+              "host": ["{{base_url}}"],
+              "path": ["tools", "get_current_time"]
+            },
+            "description": "Test error handling for invalid timezone."
+          },
+          "response": []
+        },
+        {
+          "name": "Error - Invalid Time Format",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 400 or 422', function() {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([400, 422]);",
+                  "});",
+                  "",
+                  "pm.test('Error message mentions invalid format', function() {",
+                  "    const body = pm.response.text();",
+                  "    pm.expect(body.toLowerCase()).to.include('invalid');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "
