@@ -1,0 +1,58 @@
+[MASTER]
+# Python version to target
+py-version=3.9
+
+# Files or directories to be skipped
+ignore=venv,.git,.mypy_cache,.qodo
+
+[MESSAGES CONTROL]
+# Disable specific warnings that are too strict for this project
+disable=
+    C0114,  # missing-module-docstring
+    C0115,  # missing-class-docstring
+    C0116,  # missing-function-docstring
+    R0913,  # too-many-arguments
+    R0914,  # too-many-locals
+    R0915,  # too-many-statements
+    W0718,  # broad-exception-caught
+    C0103,  # invalid-name (for short variable names)
+    R0801,  # duplicate-code
+    W1203,  # logging-fstring-interpolation
+    C0301,  # line-too-long (handled separately)
+    W0212,  # protected-access (for internal FastMCP usage)
+    R0903,  # too-few-public-methods
+
+[FORMAT]
+# Maximum line length
+max-line-length=100
+
+# Allow common naming patterns
+good-names=i,j,k,ex,Run,_,id,tz,e,f
+
+[DESIGN]
+# Maximum number of arguments for function / method
+max-args=10
+
+# Maximum number of attributes for a class
+max-attributes=15
+
+[BASIC]
+# Regular expression for variable names
+variable-rgx=[a-z_][a-z0-9_]{1,30}$
+
+# Regular expression for constant names
+const-rgx=(([A-Z_][A-Z0-9_]*)|(__.*__))$
+
+[REPORTS]
+# Set the output format
+output-format=colorized
+
+# Minimum acceptable score (0-10)
+fail-under=8.0
+
+[SIMILARITIES]
+# Minimum lines number of a similarity
+min-similarity-lines=10
+
+# Ignore imports when computing similarities
+ignore-imports=yes
