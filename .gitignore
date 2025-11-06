@@ -45,3 +45,14 @@ htmlcov/
 # OS
 .DS_Store
 Thumbs.db
+
+# Reports and temporary artifacts created during local/debug runs
+reports/*.log
+reports/*-report.json
+reports/*_report.json
+reports/*.pid
+reports/*-env.json
+reports/newman-*.json
+reports/tmp*
+# keep the canonical runnable collection in the repo
+!reports/collection-run.json

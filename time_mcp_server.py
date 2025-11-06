@@ -12,6 +12,7 @@ from zoneinfo import ZoneInfo, available_timezones
 from fastmcp import FastMCP
 from starlette.responses import JSONResponse
 from starlette.routing import Route
+import requests
 
 # Configure logging to reduce SSE disconnect noise
 logging.getLogger("uvicorn.error").setLevel(logging.WARNING)
@@ -39,12 +40,79 @@ async def oauth_protected_resource_metadata(request):
     return JSONResponse(metadata)
 
 
+async def http_get_current_time(request):
+    """HTTP wrapper for get_current_time tool. Expects JSON body {"timezone": "UTC"}.
+    Requires Authorization: Bearer <token> header (presence only).
+    Returns JSON result or 401 if missing token.
+    """
+    auth = request.headers.get('authorization') or request.headers.get('Authorization')
+    if not auth or not auth.lower().startswith('bearer '):
+        return JSONResponse('Unauthorized', status_code=401)
+
+    # Validate token via introspection endpoint (mock OAuth server)
+    token = auth.split(None, 1)[1] if ' ' in auth else ''
+    try:
+        introspect = requests.post('http://localhost:8000/oauth/introspect', data={'token': token}, timeout=2)
+        if introspect.status_code != 200 or not introspect.json().get('active'):
+            return JSONResponse('Unauthorized', status_code=401)
+    except Exception:
+        # If introspection fails, treat as unauthorized
+        return JSONResponse('Unauthorized', status_code=401)
+
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+
+    tz = payload.get('timezone', 'UTC')
+    try:
+        result = await get_current_time(timezone=tz)
+        return JSONResponse(result)
+    except ValueError as e:
+        return JSONResponse({'error': str(e)}, status_code=400)
+
+
+async def http_convert_time(request):
+    """HTTP wrapper for convert_time tool. Expects JSON body {"source_timezone":..., "time":..., "target_timezone":...}.
+    Requires Authorization: Bearer <token> header (presence only).
+    """
+    auth = request.headers.get('authorization') or request.headers.get('Authorization')
+    if not auth or not auth.lower().startswith('bearer '):
+        return JSONResponse('Unauthorized', status_code=401)
+
+    # Validate token via introspection endpoint (mock OAuth server)
+    token = auth.split(None, 1)[1] if ' ' in auth else ''
+    try:
+        introspect = requests.post('http://localhost:8000/oauth/introspect', data={'token': token}, timeout=2)
+        if introspect.status_code != 200 or not introspect.json().get('active'):
+            return JSONResponse('Unauthorized', status_code=401)
+    except Exception:
+        return JSONResponse('Unauthorized', status_code=401)
+
+    try:
+        payload = await request.json()
+    except Exception:
+        return JSONResponse({'error': 'Invalid JSON body'}, status_code=400)
+
+    src = payload.get('source_timezone')
+    time_str = payload.get('time')
+    tgt = payload.get('target_timezone')
+
+    if not (src and time_str and tgt):
+        return JSONResponse({'error': 'Missing required fields'}, status_code=400)
+
+    try:
+        result = await convert_time(source_timezone=src, time=time_str, target_timezone=tgt)
+        return JSONResponse(result)
+    except ValueError as e:
+        return JSONResponse({'error': str(e)}, status_code=400)
+
+
 # Initialize FastMCP server with OAuth2 PKCE
 # Note: Auth configuration is passed via settings or at runtime
 mcp = FastMCP("Time Server OAuth")
 
 
-@mcp.tool()
 async def get_current_time(timezone: str = "UTC") -> Dict[str, Any]:
     """
     Get current time in a specific timezone.
@@ -92,7 +160,10 @@ async def get_current_time(timezone: str = "UTC") -> Dict[str, Any]:
         raise ValueError(f"Error getting current time: {str(e)}")
 
 
-@mcp.tool()
+# Register the coroutine as a FastMCP tool but keep the original function
+mcp.tool()(get_current_time)
+
+
 async def convert_time(
     source_timezone: str,
     time: str,
@@ -213,6 +284,10 @@ async def convert_time(
         raise ValueError(f"Error converting time: {str(e)}")
 
 
+# Register the coroutine as a FastMCP tool but keep the original function
+mcp.tool()(convert_time)
+
+
 @mcp.resource("time://current")
 async def current_time_resource() -> str:
     """
@@ -320,6 +395,13 @@ if __name__ == "__main__":
                     Route("/.well-known/oauth-protected-resource",
                           oauth_protected_resource_metadata,
                           methods=["GET"])
+                )
+                # Add HTTP wrappers for tool endpoints (token protected)
+                self.routes.append(
+                    Route("/tools/get_current_time", http_get_current_time, methods=["POST"])
+                )
+                self.routes.append(
+                    Route("/tools/convert_time", http_convert_time, methods=["POST"])
                 )
             
             Starlette.__init__ = patched_init

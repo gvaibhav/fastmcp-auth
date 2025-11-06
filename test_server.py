@@ -63,7 +63,10 @@ class TestGetCurrentTime(unittest.TestCase):
         
         self.assertEqual(result['timezone'], 'America/New_York')
         parsed = datetime.fromisoformat(result['datetime'])
-        self.assertEqual(parsed.tzinfo, ZoneInfo("America/New_York"))
+        # Some ISO parsers return a fixed-offset tzinfo while ZoneInfo preserves the zone key.
+        # Compare offsets instead to be robust across environments.
+        expected_offset = parsed.replace(tzinfo=ZoneInfo("America/New_York")).utcoffset()
+        self.assertEqual(parsed.utcoffset(), expected_offset)
     
     def test_get_current_time_various_timezones(self):
         """Test multiple valid timezones"""

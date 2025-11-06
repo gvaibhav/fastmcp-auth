@@ -1,572 +1,278 @@
 {
   "info": {
-    "name": "Time MCP Server - OAuth2 PKCE",
-    "description": "Complete Postman collection for testing Time MCP Server with OAuth2 PKCE authentication.\n\nSetup Instructions:\n1. Import this collection into Postman\n2. Update environment variables with your OAuth gateway URLs\n3. Run 'Setup - Generate PKCE' to create code_verifier and code_challenge\n4. Follow the OAuth flow in order\n5. Test the MCP tools\n\nNote: This collection demonstrates the OAuth2 PKCE flow. You'll need your OAuth gateway configured.",
+    "name": "Time MCP Server - Quick Run",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "version": "1.0.0"
+    "version": "1.0.0",
+    "description": "Minimal collection for automated runs (newman). Ensure reports/newman-env.json exists with code_verifier/code_challenge/authorization_code/access_token/refresh_token before running."
   },
-  "auth": {
-    "type": "bearer",
-    "bearer": [
-      {
-        "key": "token",
-        "value": "{{access_token}}",
-        "type": "string"
-      }
-    ]
-  },
-  "variable": [
-    {
-      "key": "base_url",
-      "value": "http://localhost:3000",
-      "type": "string"
-    },
-    {
-      "key": "oauth_auth_url",
-      "value": "http://localhost:8000/oauth/authorize",
-      "type": "string"
-    },
-    {
-      "key": "oauth_token_url",
-      "value": "http://localhost:8000/oauth/token",
-      "type": "string"
-    },
-    {
-      "key": "client_id",
-      "value": "time-mcp-client",
-      "type": "string"
-    },
-    {
-      "key": "redirect_uri",
-      "value": "http://localhost:3000/callback",
-      "type": "string"
-    },
-    {
-      "key": "scope",
-      "value": "time:read time:convert",
-      "type": "string"
-    },
-    {
-      "key": "code_verifier",
-      "value": "",
-      "type": "string"
-    },
-    {
-      "key": "code_challenge",
-      "value": "",
-      "type": "string"
-    },
-    {
-      "key": "authorization_code",
-      "value": "",
-      "type": "string"
-    },
-    {
-      "key": "access_token",
-      "value": "",
-      "type": "string"
-    },
-    {
-      "key": "refresh_token",
-      "value": "",
-      "type": "string"
-    }
-  ],
   "item": [
     {
-      "name": "0. Setup & Documentation",
-      "item": [
+      "name": "Discovery - AS Metadata",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "http://localhost:8000/.well-known/oauth-authorization-server"
+      },
+      "event": [
         {
-          "name": "README - Testing Instructions",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/health",
-              "host": ["{{base_url}}"],
-              "path": ["health"]
-            },
-            "description": "# Time MCP Server Testing Guide\n\n## Prerequisites\n1. Time MCP Server running on {{base_url}}\n2. OAuth Gateway running and configured\n3. Postman installed\n\n## OAuth2 PKCE Flow Overview\n\n```\n1. Generate PKCE parameters (code_verifier, code_challenge)\n2. Request authorization (user login)\n3. Exchange authorization code for access token\n4. Use access token to call MCP tools\n5. Refresh token when expired\n```\n\n## Testing Steps\n\n### Step 1: Generate PKCE Parameters\nRun: `Setup - Generate PKCE`\n- Creates random code_verifier\n- Generates code_challenge (SHA256)\n- Saves to environment variables\n\n### Step 2: Get Authorization Code\nRun: `OAuth - 1. Authorize (Get Code)`\n- Opens browser for user login\n- Redirects back with authorization code\n- Copy code to {{authorization_code}} variable\n\n### Step 3: Exchange for Access Token\nRun: `OAuth - 2. Token Exchange`\n- Sends code + code_verifier to token endpoint\n- Receives access_token and refresh_token\n- Automatically saves to environment\n\n### Step 4: Test MCP Tools\nRun any tool request:\n- `MCP - Get Current Time`\n- `MCP - Convert Time`\n- `MCP - Get Resource (current)`\n- `MCP - Get Resource (timezones)`\n\n### Step 5: Refresh Token (Optional)\nWhen access token expires:\nRun: `OAuth - 3. Refresh Token`\n\n## Important Notes\n\n- **PKCE is Automatic**: Code challenge/verifier handled by Postman\n- **No Client Secret**: PKCE doesn't need client_secret\n- **Browser Required**: Authorization step needs user interaction\n- **Token Expiry**: Access tokens typically expire in 1 hour\n\n## Troubleshooting\n\n### \"Invalid code_challenge\"\n- Regenerate PKCE parameters\n- Ensure code_challenge is base64url encoded\n\n### \"Invalid authorization code\"\n- Code may have expired (usually 10 minutes)\n- Get a new authorization code\n\n### \"Invalid token\"\n- Access token expired\n- Use refresh token to get new access token\n\n### \"Unauthorized\"\n- Check that access_token is set in collection auth\n- Verify scopes match what gateway expects"
-          },
-          "response": []
-        },
-        {
-          "name": "Setup - Generate PKCE",
-          "event": [
-            {
-              "listen": "prerequest",
-              "script": {
-                "exec": [
-                  "// Generate code_verifier (43-128 characters)",
-                  "function generateCodeVerifier() {",
-                  "    const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';",
-                  "    const length = 128;",
-                  "    let result = '';",
-                  "    const randomValues = new Uint8Array(length);",
-                  "    crypto.getRandomValues(randomValues);",
-                  "    for (let i = 0; i < length; i++) {",
-                  "        result += charset[randomValues[i] % charset.length];",
-                  "    }",
-                  "    return result;",
-                  "}",
-                  "",
-                  "// Generate code_challenge from code_verifier (SHA256 hash)",
-                  "async function generateCodeChallenge(verifier) {",
-                  "    const encoder = new TextEncoder();",
-                  "    const data = encoder.encode(verifier);",
-                  "    const hash = await crypto.subtle.digest('SHA-256', data);",
-                  "    // Convert to base64url",
-                  "    const base64 = btoa(String.fromCharCode(...new Uint8Array(hash)));",
-                  "    return base64",
-                  "        .replace(/\\+/g, '-')",
-                  "        .replace(/\\//g, '_')",
-                  "        .replace(/=/g, '');",
-                  "}",
-                  "",
-                  "// Generate PKCE parameters",
-                  "(async function() {",
-                  "    const codeVerifier = generateCodeVerifier();",
-                  "    const codeChallenge = await generateCodeChallenge(codeVerifier);",
-                  "    ",
-                  "    pm.collectionVariables.set('code_verifier', codeVerifier);",
-                  "    pm.collectionVariables.set('code_challenge', codeChallenge);",
-                  "    ",
-                  "    console.log('PKCE Parameters Generated:');",
-                  "    console.log('code_verifier:', codeVerifier);",
-                  "    console.log('code_challenge:', codeChallenge);",
-                  "    console.log('\\nThese have been saved to collection variables.');",
-                  "    console.log('\\nNext step: Run \"OAuth - 1. Authorize (Get Code)\"');",
-                  "})();"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/",
-              "host": ["{{base_url}}"],
-              "path": [""]
-            },
-            "description": "Generates PKCE parameters (code_verifier and code_challenge) and saves them to collection variables.\n\nThis must be run FIRST before starting the OAuth flow."
-          },
-          "response": []
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', ()=> pm.response.to.have.status(200));"
+            ]
+          }
         }
-      ],
-      "description": "Setup and documentation for testing the Time MCP Server"
+      ]
     },
     {
-      "name": "0.5. Well-Known Discovery Endpoints",
-      "item": [
+      "name": "Discovery - OpenID Config",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "http://localhost:8000/.well-known/openid-configuration"
+      },
+      "event": [
         {
-          "name": "Get Authorization Server Metadata (RFC 8414)",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status code is 200', function() {",
-                  "    pm.response.to.have.status(200);",
-                  "});",
-                  "",
-                  "pm.test('Response is JSON', function() {",
-                  "    pm.response.to.be.json;",
-                  "});",
-                  "",
-                  "pm.test('Contains required fields', function() {",
-                  "    const jsonData = pm.response.json();",
-                  "    pm.expect(jsonData).to.have.property('issuer');",
-                  "    pm.expect(jsonData).to.have.property('authorization_endpoint');",
-                  "    pm.expect(jsonData).to.have.property('token_endpoint');",
-                  "    pm.expect(jsonData).to.have.property('response_types_supported');",
-                  "});",
-                  "",
-                  "pm.test('Supports PKCE (S256)', function() {",
-                  "    const jsonData = pm.response.json();",
-                  "    pm.expect(jsonData.code_challenge_methods_supported).to.include('S256');",
-                  "});",
-                  "",
-                  "console.log('Authorization Server Metadata:');",
-                  "console.log(JSON.stringify(pm.response.json(), null, 2));"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "auth": {
-              "type": "noauth"
-            },
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "http://localhost:8000/.well-known/oauth-authorization-server",
-              "protocol": "http",
-              "host": ["localhost"],
-              "port": "8000",
-              "path": [".well-known", "oauth-authorization-server"]
-            },
-            "description": "Retrieves OAuth 2.0 Authorization Server Metadata as defined in RFC 8414.\n\nThis endpoint provides:\n- Issuer identifier\n- Authorization and token endpoints\n- Supported grant types and response types\n- PKCE support (code_challenge_methods_supported)\n- Supported scopes\n\nUse this to automatically discover the OAuth server's capabilities."
-          },
-          "response": []
-        },
-        {
-          "name": "Get OpenID Configuration",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status code is 200', function() {",
-                  "    pm.response.to.have.status(200);",
-                  "});",
-                  "",
-                  "pm.test('Response is JSON', function() {",
-                  "    pm.response.to.be.json;",
-                  "});",
-                  "",
-                  "pm.test('Contains OIDC fields', function() {",
-                  "    const jsonData = pm.response.json();",
-                  "    pm.expect(jsonData).to.have.property('issuer');",
-                  "    pm.expect(jsonData).to.have.property('authorization_endpoint');",
-                  "    pm.expect(jsonData).to.have.property('token_endpoint');",
-                  "});",
-                  "",
-                  "console.log('OpenID Configuration:');",
-                  "console.log(JSON.stringify(pm.response.json(), null, 2));"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "auth": {
-              "type": "noauth"
-            },
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "http://localhost:8000/.well-known/openid-configuration",
-              "protocol": "http",
-              "host": ["localhost"],
-              "port": "8000",
-              "path": [".well-known", "openid-configuration"]
-            },
-            "description": "Retrieves OpenID Connect Discovery configuration.\n\nThis is compatible with OpenID Connect clients and provides similar information to the OAuth AS metadata endpoint."
-          },
-          "response": []
-        },
-        {
-          "name": "Get Protected Resource Metadata (RFC 9728)",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status code is 200', function() {",
-                  "    pm.response.to.have.status(200);",
-                  "});",
-                  "",
-                  "pm.test('Response is JSON', function() {",
-                  "    pm.response.to.be.json;",
-                  "});",
-                  "",
-                  "pm.test('Contains required fields', function() {",
-                  "    const jsonData = pm.response.json();",
-                  "    pm.expect(jsonData).to.have.property('resource');",
-                  "    pm.expect(jsonData).to.have.property('authorization_servers');",
-                  "    pm.expect(jsonData).to.have.property('scopes_supported');",
-                  "});",
-                  "",
-                  "pm.test('Lists authorization servers', function() {",
-                  "    const jsonData = pm.response.json();",
-                  "    pm.expect(jsonData.authorization_servers).to.be.an('array');",
-                  "    pm.expect(jsonData.authorization_servers.length).to.be.greaterThan(0);",
-                  "});",
-                  "",
-                  "console.log('Protected Resource Metadata:');",
-                  "console.log(JSON.stringify(pm.response.json(), null, 2));"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "auth": {
-              "type": "noauth"
-            },
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "http://localhost:3000/.well-known/oauth-protected-resource",
-              "protocol": "http",
-              "host": ["localhost"],
-              "port": "3000",
-              "path": [".well-known", "oauth-protected-resource"]
-            },
-            "description": "Retrieves OAuth 2.0 Protected Resource Metadata as defined in RFC 9728.\n\nThis endpoint provides:\n- Resource identifier\n- List of authorization servers\n- Supported scopes\n- Bearer token methods\n- Token management endpoints\n\nUse this to discover what authorization servers protect this resource."
-          },
-          "response": []
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', ()=> pm.response.to.have.status(200));"
+            ]
+          }
         }
-      ],
-      "description": "OAuth 2.0 and OpenID Connect discovery endpoints for automatic configuration.\n\nThese endpoints allow clients to automatically discover:\n- Authorization and token endpoints\n- Supported features and capabilities\n- Required scopes\n- PKCE support"
+      ]
     },
     {
-      "name": "1. OAuth2 PKCE Flow",
-      "item": [
+      "name": "Discovery - Protected Resource",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "http://localhost:3000/.well-known/oauth-protected-resource"
+      },
+      "event": [
         {
-          "name": "OAuth - 1. Authorize (Get Code)",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{oauth_auth_url}}?response_type=code&client_id={{client_id}}&redirect_uri={{redirect_uri}}&scope={{scope}}&code_challenge={{code_challenge}}&code_challenge_method=S256&state=random_state_string",
-              "host": ["{{oauth_auth_url}}"],
-              "query": [
-                {
-                  "key": "response_type",
-                  "value": "code",
-                  "description": "OAuth2 response type"
-                },
-                {
-                  "key": "client_id",
-                  "value": "{{client_id}}",
-                  "description": "Your OAuth client ID"
-                },
-                {
-                  "key": "redirect_uri",
-                  "value": "{{redirect_uri}}",
-                  "description": "Where to redirect after authorization"
-                },
-                {
-                  "key": "scope",
-                  "value": "{{scope}}",
-                  "description": "Required scopes"
-                },
-                {
-                  "key": "code_challenge",
-                  "value": "{{code_challenge}}",
-                  "description": "PKCE code challenge (SHA256 of verifier)"
-                },
-                {
-                  "key": "code_challenge_method",
-                  "value": "S256",
-                  "description": "Challenge method (SHA256)"
-                },
-                {
-                  "key": "state",
-                  "value": "random_state_string",
-                  "description": "CSRF protection (optional but recommended)"
-                }
-              ]
-            },
-            "description": "**Step 1: Authorization Request**\n\nThis initiates the OAuth2 PKCE flow:\n\n1. Run this request in Postman\n2. It will open your browser to the OAuth gateway\n3. Log in and authorize the application\n4. You'll be redirected to: `redirect_uri?code=AUTHORIZATION_CODE`\n5. Copy the `code` parameter value\n6. Set it as {{authorization_code}} variable\n7. Proceed to Step 2 (Token Exchange)\n\n**What's Happening:**\n- Your gateway validates the client_id\n- User logs in and grants permissions\n- Gateway stores the code_challenge\n- Gateway returns authorization code\n\n**PKCE Security:**\n- code_challenge is sent (not code_verifier)\n- Gateway stores code_challenge for validation\n- Only the client with code_verifier can exchange the code"
-          },
-          "response": []
-        },
-        {
-          "name": "OAuth - 2. Token Exchange",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "// Parse response",
-                  "const response = pm.response.json();",
-                  "",
-                  "// Save tokens to collection variables",
-                  "if (response.access_token) {",
-                  "    pm.collectionVariables.set('access_token', response.access_token);",
-                  "    console.log('✅ Access token saved');",
-                  "}",
-                  "",
-                  "if (response.refresh_token) {",
-                  "    pm.collectionVariables.set('refresh_token', response.refresh_token);",
-                  "    console.log('✅ Refresh token saved');",
-                  "}",
-                  "",
-                  "// Log token info",
-                  "console.log('Token Type:', response.token_type);",
-                  "console.log('Expires In:', response.expires_in, 'seconds');",
-                  "console.log('Scope:', response.scope);",
-                  "",
-                  "// Set tests",
-                  "pm.test('Status code is 200', function() {",
-                  "    pm.response.to.have.status(200);",
-                  "});",
-                  "",
-                  "pm.test('Access token received', function() {",
-                  "    pm.expect(response.access_token).to.exist;",
-                  "});",
-                  "",
-                  "pm.test('Token type is Bearer', function() {",
-                  "    pm.expect(response.token_type).to.equal('Bearer');",
-                  "});",
-                  "",
-                  "console.log('\\n🎉 Ready to test MCP tools! Run any MCP request now.');"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "auth": {
-              "type": "noauth"
-            },
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/x-www-form-urlencoded"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"source_timezone\": \"UTC\",\n  \"time\": \"25:99\",\n  \"target_timezone\": \"America/New_York\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/tools/convert_time",
-              "host": ["{{base_url}}"],
-              "path": ["tools", "convert_time"]
-            },
-            "description": "Test error handling for invalid time format (25:99 is invalid)."
-          },
-          "response": []
-        },
-        {
-          "name": "Error - Missing Access Token",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status code is 401', function() {",
-                  "    pm.response.to.have.status(401);",
-                  "});",
-                  "",
-                  "pm.test('Error indicates unauthorized', function() {",
-                  "    const body = pm.response.text();",
-                  "    pm.expect(body.toLowerCase()).to.include('unauthorized');",
-                  "});"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "auth": {
-              "type": "noauth"
-            },
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"timezone\": \"UTC\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/tools/get_current_time",
-              "host": ["{{base_url}}"],
-              "path": ["tools", "get_current_time"]
-            },
-            "description": "Test that requests without access token are rejected."
-          },
-          "response": []
-        },
-        {
-          "name": "Error - Invalid Access Token",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status code is 401', function() {",
-                  "    pm.response.to.have.status(401);",
-                  "});"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "invalid_token_12345",
-                  "type": "string"
-                }
-              ]
-            },
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"timezone\": \"UTC\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/tools/get_current_time",
-              "host": ["{{base_url}}"],
-              "path": ["tools", "get_current_time"]
-            },
-            "description": "Test that requests with invalid access token are rejected."
-          },
-          "response": []
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', ()=> pm.response.to.have.status(200));"
+            ]
+          }
         }
-      ],
-      "description": "Test error handling and edge cases"
+      ]
     },
     {
-      "name": "5. Health & Status",
-      "item": [
+      "name": "OAuth - Authorize (Get Code)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "http://localhost:8000/oauth/authorize?response_type=code&client_id={{client_id}}&redirect_uri={{redirect_uri}}&scope={{scope}}&code_challenge={{code_challenge}}&code_challenge_method=S256&state=state123"
+      },
+      "event": [
         {
-          "name": "Health Check",
-          "request": {
-            "auth": {
-              "type": "noauth"
-            },
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/health",
-              "host": ["{{base_url}}"],
-              "path": ["health"]
-            },
-            "description": "Health check endpoint (if available). Does not require authentication."
-          },
-          "response": []
-        },
-        {
-          "name": "Server Info",
-          "request": {
-            "auth": {
-              "type": "noauth"
-            },
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/",
-              "host": ["{{base_url}}"],
-              "path": [""]
-            },
-            "description": "Get server information. Does not require authentication."
-          },
-          "response": []
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('status 200', ()=> pm.response.to.have.status(200));",
+              "var body = pm.response.text();",
+              "var m = body.match(/code=([A-Za-z0-9_-]+)/) || body.match(/Authorization Code:[^<]*>([A-Za-z0-9_-]{20,})/) || body.match(/<div class=\\\"code\\\">\\s*([A-Za-z0-9_-]{20,})/i);",
+              "if (m && m[1]) { pm.environment.set('authorization_code', m[1]); console.log('saved code', m[1]); } else { console.log('no code found'); }"
+            ]
+          }
         }
-      ],
-      "description": "Health check and server status endpoints"
+      ]
+    },
+    {
+      "name": "OAuth - Token Exchange",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/x-www-form-urlencoded"
+          }
+        ],
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            {
+              "key": "grant_type",
+              "value": "authorization_code",
+              "type": "text"
+            },
+            {
+              "key": "code",
+              "value": "{{authorization_code}}",
+              "type": "text"
+            },
+            {
+              "key": "client_id",
+              "value": "{{client_id}}",
+              "type": "text"
+            },
+            {
+              "key": "code_verifier",
+              "value": "{{code_verifier}}",
+              "type": "text"
+            },
+            {
+              "key": "redirect_uri",
+              "value": "{{redirect_uri}}",
+              "type": "text"
+            }
+          ]
+        },
+        "url": "http://localhost:8000/oauth/token"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('status 200', ()=> pm.response.to.have.status(200));",
+              "var js = pm.response.json();",
+              "if (js.access_token) pm.environment.set('access_token', js.access_token);",
+              "if (js.refresh_token) pm.environment.set('refresh_token', js.refresh_token);",
+              "console.log('token saved');"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "MCP - Get Current Time (valid token)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{access_token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"timezone\": \"UTC\"\n}"
+        },
+        "url": "http://localhost:3000/tools/get_current_time"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('status 200', ()=> pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "MCP - Convert Time (valid token)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{access_token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"source_timezone\": \"UTC\",\n  \"time\": \"14:30\",\n  \"target_timezone\": \"America/New_York\"\n}"
+        },
+        "url": "http://localhost:3000/tools/convert_time"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('status 200', ()=> pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "MCP - Get Current Time (no token)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"timezone\": \"UTC\"\n}"
+        },
+        "url": "http://localhost:3000/tools/get_current_time"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('status 401', ()=> pm.response.to.have.status(401));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "MCP - Get Current Time (invalid token)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer invalid_token_12345"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"timezone\": \"UTC\"\n}"
+        },
+        "url": "http://localhost:3000/tools/get_current_time"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('status 401', ()=> pm.response.to.have.status(401));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "http://localhost:3000/health"
+      }
+    },
+    {
+      "name": "Server Info",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "http://localhost:3000/"
+      }
     }
   ]
 }

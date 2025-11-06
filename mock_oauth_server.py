@@ -120,6 +120,11 @@ class OAuthHandler(BaseHTTPRequestHandler):
         
         if path == '/oauth/token':
             self.handle_token(params)
+        elif path == '/oauth/introspect':
+            self.handle_introspect(params)
+        elif path == '/__admin/reset':
+            # admin reset endpoint to clear in-memory state for testing
+            self.handle_reset()
         else:
             self.send_json_response(404, {'error': 'not_found'})
     
@@ -540,6 +545,37 @@ class OAuthHandler(BaseHTTPRequestHandler):
             'refresh_token': new_refresh_token,
             'scope': old_token_data['scope']
         })
+
+    def handle_introspect(self, params: dict):
+        """Simple token introspection endpoint for testing.
+
+        Expects form-encoded body with 'token'. Returns JSON with 'active': true/false
+        and some optional token metadata when active.
+        """
+        token = params.get('token')
+        if not token:
+            self.send_json_response(400, {'error': 'invalid_request', 'error_description': 'Missing token'})
+            return
+
+        active = token in access_tokens
+        response = {'active': bool(active)}
+        if active:
+            token_data = access_tokens[token]
+            response.update({
+                'client_id': token_data.get('client_id'),
+                'scope': token_data.get('scope'),
+                'exp': int(token_data['expires_at'].timestamp()) if token_data.get('expires_at') else None
+            })
+
+        self.send_json_response(200, response)
+
+    def handle_reset(self):
+        """Admin helper to clear in-memory storage for tests."""
+        authorization_codes.clear()
+        access_tokens.clear()
+        refresh_tokens.clear()
+        print("🔁 Mock OAuth server state reset")
+        self.send_json_response(200, {'status': 'reset'})
 
 
 def run_server(port: int = 8000):
