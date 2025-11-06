@@ -98,6 +98,10 @@ class OAuthHandler(BaseHTTPRequestHandler):
             self.handle_root()
         elif path == '/oauth/authorize':
             self.handle_authorize(params)
+        elif path == '/.well-known/oauth-authorization-server':
+            self.handle_oauth_metadata()
+        elif path == '/.well-known/openid-configuration':
+            self.handle_openid_configuration()
         else:
             self.send_json_response(404, {'error': 'not_found'})
     
@@ -173,6 +177,14 @@ class OAuthHandler(BaseHTTPRequestHandler):
                     <strong>POST /oauth/token</strong><br>
                     Token endpoint (exchange code for token)
                 </div>
+                <div class="endpoint">
+                    <strong>GET /.well-known/oauth-authorization-server</strong><br>
+                    OAuth 2.0 Authorization Server Metadata (RFC 8414)
+                </div>
+                <div class="endpoint">
+                    <strong>GET /.well-known/openid-configuration</strong><br>
+                    OpenID Connect Discovery endpoint
+                </div>
                 
                 <h2>Configuration</h2>
                 <ul>
@@ -208,6 +220,47 @@ class OAuthHandler(BaseHTTPRequestHandler):
         </html>
         """
         self.send_html_response(200, html)
+    
+    def handle_oauth_metadata(self):
+        """Handle OAuth 2.0 Authorization Server Metadata (RFC 8414)"""
+        metadata = {
+            "issuer": "http://localhost:8000",
+            "authorization_endpoint": "http://localhost:8000/oauth/authorize",
+            "token_endpoint": "http://localhost:8000/oauth/token",
+            "token_endpoint_auth_methods_supported": ["none"],
+            "grant_types_supported": ["authorization_code", "refresh_token"],
+            "response_types_supported": ["code"],
+            "code_challenge_methods_supported": ["S256"],
+            "scopes_supported": ["time:read", "time:convert"],
+            "service_documentation": "http://localhost:8000/",
+            "ui_locales_supported": ["en-US"],
+            "revocation_endpoint": "http://localhost:8000/oauth/revoke",
+            "introspection_endpoint": "http://localhost:8000/oauth/introspect",
+            "response_modes_supported": ["query", "fragment"],
+            "token_endpoint_auth_signing_alg_values_supported": ["none"]
+        }
+        self.send_json_response(200, metadata)
+    
+    def handle_openid_configuration(self):
+        """Handle OpenID Connect Discovery (compatible format)"""
+        config = {
+            "issuer": "http://localhost:8000",
+            "authorization_endpoint": "http://localhost:8000/oauth/authorize",
+            "token_endpoint": "http://localhost:8000/oauth/token",
+            "userinfo_endpoint": "http://localhost:8000/oauth/userinfo",
+            "jwks_uri": "http://localhost:8000/.well-known/jwks.json",
+            "registration_endpoint": "http://localhost:8000/oauth/register",
+            "scopes_supported": ["openid", "time:read", "time:convert"],
+            "response_types_supported": ["code"],
+            "response_modes_supported": ["query", "fragment"],
+            "grant_types_supported": ["authorization_code", "refresh_token"],
+            "subject_types_supported": ["public"],
+            "id_token_signing_alg_values_supported": ["none"],
+            "token_endpoint_auth_methods_supported": ["none"],
+            "code_challenge_methods_supported": ["S256"],
+            "service_documentation": "http://localhost:8000/"
+        }
+        self.send_json_response(200, config)
     
     def handle_authorize(self, params: dict):
         """Handle authorization request"""

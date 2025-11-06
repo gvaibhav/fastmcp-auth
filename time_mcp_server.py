@@ -10,9 +10,33 @@ from typing import Dict, Any
 from zoneinfo import ZoneInfo, available_timezones
 
 from fastmcp import FastMCP
+from starlette.responses import JSONResponse
+from starlette.routing import Route
 
 # Configure logging to reduce SSE disconnect noise
 logging.getLogger("uvicorn.error").setLevel(logging.WARNING)
+
+
+# OAuth Protected Resource Metadata Handler
+async def oauth_protected_resource_metadata(request):
+    """
+    OAuth 2.0 Protected Resource Metadata (RFC 9728)
+    Provides information about this protected resource server
+    """
+    metadata = {
+        "resource": "http://localhost:3000",
+        "authorization_servers": ["http://localhost:8000"],
+        "bearer_methods_supported": ["header"],
+        "resource_signing_alg_values_supported": ["none"],
+        "resource_encryption_alg_values_supported": [],
+        "resource_encryption_enc_values_supported": [],
+        "scopes_supported": ["time:read", "time:convert"],
+        "resource_documentation": "http://localhost:3000/",
+        "token_endpoint": "http://localhost:8000/oauth/token",
+        "introspection_endpoint": "http://localhost:8000/oauth/introspect",
+        "revocation_endpoint": "http://localhost:8000/oauth/revoke"
+    }
+    return JSONResponse(metadata)
 
 
 # Initialize FastMCP server with OAuth2 PKCE
@@ -263,6 +287,8 @@ if __name__ == "__main__":
     print("\nResources available:")
     print("  - time://current")
     print("  - time://timezones")
+    print("\nWell-known endpoints:")
+    print("  - /.well-known/oauth-protected-resource")
     print("\nAuthentication: OAuth2 PKCE ready")
     print("Running in SSE mode on http://localhost:3000/sse")
     print("=" * 60)
@@ -270,6 +296,39 @@ if __name__ == "__main__":
     print("   Real MCP clients maintain long-lived connections")
     print("   The server is working correctly!\n")
     print("Starting server...\n")
+    
+    # Add custom route for .well-known endpoint before starting
+    # The app is created during mcp.run(), so we need to add it via a custom route handler
+    from starlette.routing import Route
+    if hasattr(mcp, '_app') or True:  # Always add the route
+        # Create a wrapper to ensure the app has the route
+        original_run = mcp.run
+        
+        def run_with_routes(*args, **kwargs):
+            # The app gets created in run(), so we patch it there
+            import functools
+            from starlette.applications import Starlette
+            
+            # Monkey-patch the Starlette initialization to add our route
+            original_starlette_init = Starlette.__init__
+            
+            @functools.wraps(original_starlette_init)
+            def patched_init(self, *init_args, **init_kwargs):
+                original_starlette_init(self, *init_args, **init_kwargs)
+                # Add our custom route
+                self.routes.append(
+                    Route("/.well-known/oauth-protected-resource",
+                          oauth_protected_resource_metadata,
+                          methods=["GET"])
+                )
+            
+            Starlette.__init__ = patched_init
+            try:
+                return original_run(*args, **kwargs)
+            finally:
+                Starlette.__init__ = original_starlette_init
+        
+        mcp.run = run_with_routes
     
     # Run in SSE mode
     mcp.run(transport="sse", host="localhost", port=3000)

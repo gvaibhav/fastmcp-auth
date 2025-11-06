@@ -158,6 +158,162 @@
       "description": "Setup and documentation for testing the Time MCP Server"
     },
     {
+      "name": "0.5. Well-Known Discovery Endpoints",
+      "item": [
+        {
+          "name": "Get Authorization Server Metadata (RFC 8414)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function() {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response is JSON', function() {",
+                  "    pm.response.to.be.json;",
+                  "});",
+                  "",
+                  "pm.test('Contains required fields', function() {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('issuer');",
+                  "    pm.expect(jsonData).to.have.property('authorization_endpoint');",
+                  "    pm.expect(jsonData).to.have.property('token_endpoint');",
+                  "    pm.expect(jsonData).to.have.property('response_types_supported');",
+                  "});",
+                  "",
+                  "pm.test('Supports PKCE (S256)', function() {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.code_challenge_methods_supported).to.include('S256');",
+                  "});",
+                  "",
+                  "console.log('Authorization Server Metadata:');",
+                  "console.log(JSON.stringify(pm.response.json(), null, 2));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8000/.well-known/oauth-authorization-server",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": [".well-known", "oauth-authorization-server"]
+            },
+            "description": "Retrieves OAuth 2.0 Authorization Server Metadata as defined in RFC 8414.\n\nThis endpoint provides:\n- Issuer identifier\n- Authorization and token endpoints\n- Supported grant types and response types\n- PKCE support (code_challenge_methods_supported)\n- Supported scopes\n\nUse this to automatically discover the OAuth server's capabilities."
+          },
+          "response": []
+        },
+        {
+          "name": "Get OpenID Configuration",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function() {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response is JSON', function() {",
+                  "    pm.response.to.be.json;",
+                  "});",
+                  "",
+                  "pm.test('Contains OIDC fields', function() {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('issuer');",
+                  "    pm.expect(jsonData).to.have.property('authorization_endpoint');",
+                  "    pm.expect(jsonData).to.have.property('token_endpoint');",
+                  "});",
+                  "",
+                  "console.log('OpenID Configuration:');",
+                  "console.log(JSON.stringify(pm.response.json(), null, 2));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8000/.well-known/openid-configuration",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": [".well-known", "openid-configuration"]
+            },
+            "description": "Retrieves OpenID Connect Discovery configuration.\n\nThis is compatible with OpenID Connect clients and provides similar information to the OAuth AS metadata endpoint."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Protected Resource Metadata (RFC 9728)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function() {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response is JSON', function() {",
+                  "    pm.response.to.be.json;",
+                  "});",
+                  "",
+                  "pm.test('Contains required fields', function() {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('resource');",
+                  "    pm.expect(jsonData).to.have.property('authorization_servers');",
+                  "    pm.expect(jsonData).to.have.property('scopes_supported');",
+                  "});",
+                  "",
+                  "pm.test('Lists authorization servers', function() {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.authorization_servers).to.be.an('array');",
+                  "    pm.expect(jsonData.authorization_servers.length).to.be.greaterThan(0);",
+                  "});",
+                  "",
+                  "console.log('Protected Resource Metadata:');",
+                  "console.log(JSON.stringify(pm.response.json(), null, 2));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/.well-known/oauth-protected-resource",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": [".well-known", "oauth-protected-resource"]
+            },
+            "description": "Retrieves OAuth 2.0 Protected Resource Metadata as defined in RFC 9728.\n\nThis endpoint provides:\n- Resource identifier\n- List of authorization servers\n- Supported scopes\n- Bearer token methods\n- Token management endpoints\n\nUse this to discover what authorization servers protect this resource."
+          },
+          "response": []
+        }
+      ],
+      "description": "OAuth 2.0 and OpenID Connect discovery endpoints for automatic configuration.\n\nThese endpoints allow clients to automatically discover:\n- Authorization and token endpoints\n- Supported features and capabilities\n- Required scopes\n- PKCE support"
+    },
+    {
       "name": "1. OAuth2 PKCE Flow",
       "item": [
         {
@@ -413,454 +569,4 @@
       "description": "Health check and server status endpoints"
     }
   ]
-}urlencoded",
-              "urlencoded": [
-                {
-                  "key": "grant_type",
-                  "value": "authorization_code",
-                  "type": "text"
-                },
-                {
-                  "key": "code",
-                  "value": "{{authorization_code}}",
-                  "type": "text",
-                  "description": "Authorization code from Step 1"
-                },
-                {
-                  "key": "redirect_uri",
-                  "value": "{{redirect_uri}}",
-                  "type": "text"
-                },
-                {
-                  "key": "client_id",
-                  "value": "{{client_id}}",
-                  "type": "text"
-                },
-                {
-                  "key": "code_verifier",
-                  "value": "{{code_verifier}}",
-                  "type": "text",
-                  "description": "PKCE code verifier (proves we generated the challenge)"
-                }
-              ]
-            },
-            "url": {
-              "raw": "{{oauth_token_url}}",
-              "host": ["{{oauth_token_url}}"]
-            },
-            "description": "**Step 2: Token Exchange**\n\nExchanges authorization code for access token using PKCE.\n\n**Before running:**\n1. Ensure you have authorization_code from Step 1\n2. Set {{authorization_code}} variable\n3. Run this request\n\n**What's Happening:**\n- Sends authorization code + code_verifier\n- Gateway validates: SHA256(code_verifier) == stored code_challenge\n- If valid, returns access_token and refresh_token\n- Tokens saved automatically to collection variables\n\n**PKCE Security:**\n- Gateway verifies code_verifier matches code_challenge\n- Only original client can complete the exchange\n- No client_secret needed\n\n**Success Response:**\n```json\n{\n  \"access_token\": \"...\",\n  \"token_type\": \"Bearer\",\n  \"expires_in\": 3600,\n  \"refresh_token\": \"...\",\n  \"scope\": \"time:read time:convert\"\n}\n```"
-          },
-          "response": []
-        },
-        {
-          "name": "OAuth - 3. Refresh Token",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "const response = pm.response.json();",
-                  "",
-                  "if (response.access_token) {",
-                  "    pm.collectionVariables.set('access_token', response.access_token);",
-                  "    console.log('✅ New access token saved');",
-                  "}",
-                  "",
-                  "if (response.refresh_token) {",
-                  "    pm.collectionVariables.set('refresh_token', response.refresh_token);",
-                  "    console.log('✅ New refresh token saved');",
-                  "}",
-                  "",
-                  "pm.test('Status code is 200', function() {",
-                  "    pm.response.to.have.status(200);",
-                  "});",
-                  "",
-                  "pm.test('New access token received', function() {",
-                  "    pm.expect(response.access_token).to.exist;",
-                  "});"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "auth": {
-              "type": "noauth"
-            },
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/x-www-form-urlencoded"
-              }
-            ],
-            "body": {
-              "mode": "urlencoded",
-              "urlencoded": [
-                {
-                  "key": "grant_type",
-                  "value": "refresh_token",
-                  "type": "text"
-                },
-                {
-                  "key": "refresh_token",
-                  "value": "{{refresh_token}}",
-                  "type": "text"
-                },
-                {
-                  "key": "client_id",
-                  "value": "{{client_id}}",
-                  "type": "text"
-                }
-              ]
-            },
-            "url": {
-              "raw": "{{oauth_token_url}}",
-              "host": ["{{oauth_token_url}}"]
-            },
-            "description": "**Step 3: Refresh Access Token**\n\nUse refresh token to get a new access token when the current one expires.\n\n**When to use:**\n- Access token expired (typically after 1 hour)\n- Getting 401 Unauthorized errors\n- Proactively before expiration\n\n**Response:**\nNew access_token (and possibly new refresh_token)\n\n**Note:**\nNo PKCE parameters needed for refresh - refresh_token is already secure."
-          },
-          "response": []
-        }
-      ],
-      "description": "Complete OAuth2 PKCE authentication flow"
-    },
-    {
-      "name": "2. MCP Tools",
-      "item": [
-        {
-          "name": "MCP - Get Current Time (UTC)",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "const response = pm.response.json();",
-                  "",
-                  "pm.test('Status code is 200', function() {",
-                  "    pm.response.to.have.status(200);",
-                  "});",
-                  "",
-                  "pm.test('Response has timezone field', function() {",
-                  "    pm.expect(response.timezone).to.exist;",
-                  "});",
-                  "",
-                  "pm.test('Response has datetime field', function() {",
-                  "    pm.expect(response.datetime).to.exist;",
-                  "});",
-                  "",
-                  "pm.test('Response has is_dst field', function() {",
-                  "    pm.expect(response.is_dst).to.be.a('boolean');",
-                  "});",
-                  "",
-                  "pm.test('Timezone is UTC', function() {",
-                  "    pm.expect(response.timezone).to.equal('UTC');",
-                  "});",
-                  "",
-                  "console.log('Current UTC Time:', response.datetime);",
-                  "console.log('DST Active:', response.is_dst);"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"timezone\": \"UTC\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/tools/get_current_time",
-              "host": ["{{base_url}}"],
-              "path": ["tools", "get_current_time"]
-            },
-            "description": "Get current time in UTC timezone.\n\n**Expected Response:**\n```json\n{\n  \"timezone\": \"UTC\",\n  \"datetime\": \"2025-11-05T14:30:00+00:00\",\n  \"is_dst\": false\n}\n```"
-          },
-          "response": []
-        },
-        {
-          "name": "MCP - Get Current Time (New York)",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "const response = pm.response.json();",
-                  "",
-                  "pm.test('Status code is 200', function() {",
-                  "    pm.response.to.have.status(200);",
-                  "});",
-                  "",
-                  "pm.test('Timezone is America/New_York', function() {",
-                  "    pm.expect(response.timezone).to.equal('America/New_York');",
-                  "});",
-                  "",
-                  "console.log('Current NY Time:', response.datetime);",
-                  "console.log('DST Active:', response.is_dst);"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"timezone\": \"America/New_York\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/tools/get_current_time",
-              "host": ["{{base_url}}"],
-              "path": ["tools", "get_current_time"]
-            },
-            "description": "Get current time in New York timezone."
-          },
-          "response": []
-        },
-        {
-          "name": "MCP - Get Current Time (Tokyo)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"timezone\": \"Asia/Tokyo\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/tools/get_current_time",
-              "host": ["{{base_url}}"],
-              "path": ["tools", "get_current_time"]
-            },
-            "description": "Get current time in Tokyo timezone."
-          },
-          "response": []
-        },
-        {
-          "name": "MCP - Convert Time (UTC to NY)",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "const response = pm.response.json();",
-                  "",
-                  "pm.test('Status code is 200', function() {",
-                  "    pm.response.to.have.status(200);",
-                  "});",
-                  "",
-                  "pm.test('Response has source', function() {",
-                  "    pm.expect(response.source).to.exist;",
-                  "});",
-                  "",
-                  "pm.test('Response has target', function() {",
-                  "    pm.expect(response.target).to.exist;",
-                  "});",
-                  "",
-                  "pm.test('Response has time_difference', function() {",
-                  "    pm.expect(response.time_difference).to.exist;",
-                  "});",
-                  "",
-                  "console.log('Source:', response.source.datetime);",
-                  "console.log('Target:', response.target.datetime);",
-                  "console.log('Difference:', response.time_difference);"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"source_timezone\": \"UTC\",\n  \"time\": \"14:30\",\n  \"target_timezone\": \"America/New_York\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/tools/convert_time",
-              "host": ["{{base_url}}"],
-              "path": ["tools", "convert_time"]
-            },
-            "description": "Convert 14:30 UTC to New York time.\n\n**Expected Response:**\n```json\n{\n  \"source\": {\n    \"timezone\": \"UTC\",\n    \"datetime\": \"2025-11-05T14:30:00+00:00\",\n    \"is_dst\": false\n  },\n  \"target\": {\n    \"timezone\": \"America/New_York\",\n    \"datetime\": \"2025-11-05T09:30:00-05:00\",\n    \"is_dst\": false\n  },\n  \"time_difference\": \"-5.0h\"\n}\n```"
-          },
-          "response": []
-        },
-        {
-          "name": "MCP - Convert Time (NY to Tokyo)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"source_timezone\": \"America/New_York\",\n  \"time\": \"16:30\",\n  \"target_timezone\": \"Asia/Tokyo\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/tools/convert_time",
-              "host": ["{{base_url}}"],
-              "path": ["tools", "convert_time"]
-            },
-            "description": "Convert 16:30 New York time (4:30 PM) to Tokyo time."
-          },
-          "response": []
-        },
-        {
-          "name": "MCP - Convert Time (Edge Case - Midnight)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"source_timezone\": \"UTC\",\n  \"time\": \"00:00\",\n  \"target_timezone\": \"Asia/Tokyo\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/tools/convert_time",
-              "host": ["{{base_url}}"],
-              "path": ["tools", "convert_time"]
-            },
-            "description": "Test edge case: converting midnight UTC to Tokyo."
-          },
-          "response": []
-        }
-      ],
-      "description": "MCP tool requests (require valid access token)"
-    },
-    {
-      "name": "3. MCP Resources",
-      "item": [
-        {
-          "name": "MCP - Get Resource (current)",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/resources/time://current",
-              "host": ["{{base_url}}"],
-              "path": ["resources", "time:", "", "current"]
-            },
-            "description": "Get current UTC time resource.\n\nResource URI: `time://current`"
-          },
-          "response": []
-        },
-        {
-          "name": "MCP - Get Resource (timezones)",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/resources/time://timezones",
-              "host": ["{{base_url}}"],
-              "path": ["resources", "time:", "", "timezones"]
-            },
-            "description": "Get list of available timezones.\n\nResource URI: `time://timezones`"
-          },
-          "response": []
-        }
-      ],
-      "description": "MCP resource requests (require valid access token)"
-    },
-    {
-      "name": "4. Error Cases",
-      "item": [
-        {
-          "name": "Error - Invalid Timezone",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status code is 400 or 422', function() {",
-                  "    pm.expect(pm.response.code).to.be.oneOf([400, 422]);",
-                  "});",
-                  "",
-                  "pm.test('Error message mentions invalid timezone', function() {",
-                  "    const body = pm.response.text();",
-                  "    pm.expect(body.toLowerCase()).to.include('invalid');",
-                  "});"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"timezone\": \"Invalid/Timezone\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/tools/get_current_time",
-              "host": ["{{base_url}}"],
-              "path": ["tools", "get_current_time"]
-            },
-            "description": "Test error handling for invalid timezone."
-          },
-          "response": []
-        },
-        {
-          "name": "Error - Invalid Time Format",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status code is 400 or 422', function() {",
-                  "    pm.expect(pm.response.code).to.be.oneOf([400, 422]);",
-                  "});",
-                  "",
-                  "pm.test('Error message mentions invalid format', function() {",
-                  "    const body = pm.response.text();",
-                  "    pm.expect(body.toLowerCase()).to.include('invalid');",
-                  "});"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "
+}

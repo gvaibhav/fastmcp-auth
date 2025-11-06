@@ -81,6 +81,17 @@ Convert time between timezones.
 - `time://current` - Current UTC time
 - `time://timezones` - List of available IANA timezones
 
+## Well-Known Endpoints
+
+### Authorization Server (port 8000)
+
+- `GET /.well-known/oauth-authorization-server` - OAuth 2.0 Authorization Server Metadata (RFC 8414)
+- `GET /.well-known/openid-configuration` - OpenID Connect Discovery
+
+### Protected Resource (port 3000)
+
+- `GET /.well-known/oauth-protected-resource` - OAuth 2.0 Protected Resource Metadata (RFC 9728)
+
 ## Testing
 
 ```powershell
@@ -92,6 +103,9 @@ python test_oauth_flow.py
 
 # Test integration (requires both servers running)
 python test_integration.py
+
+# Test .well-known endpoints
+python test_wellknown_endpoints.py
 ```
 
 ## Configuration
